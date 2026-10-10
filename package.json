@@ -1,0 +1,32 @@
+{
+  "name": "lan-share",
+  "productName": "LanShare",
+  "version": "1.0.0",
+  "description": "LanShare - 局域网文件共享工具：一键共享文件夹/磁盘，浏览器访问，支持上传下载、密码保护、二维码、限速与访问日志",
+  "main": "src/main/main.js",
+  "author": {
+    "name": "ajxdp",
+    "url": "https://github.com/ajxdp"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/ajxdp/lan-share",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ajxdp/lan-share.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "start:demo": "electron . --demo",
+    "test:server": "node scripts/test-server.js",
+    "dist:win": "electron-builder --win nsis zip",
+    "dist:mac": "electron-builder --mac dmg zip",
+    "dist:dir": "electron-builder --dir"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  }
+}
