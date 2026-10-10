@@ -339,6 +339,12 @@ class ShareHub extends EventEmitter {
     const u = new URL(req.url, 'http://lan-share.local');
     const m = /^\/s\/([A-Za-z0-9]+)(\/.*)?$/.exec(u.pathname);
     if (!m) {
+      if (u.pathname === '/favicon.ico') {
+        // 页面已内嵌 data-URI 图标，直接短路，避免返回 HTML
+        res.statusCode = 204;
+        res.end();
+        return;
+      }
       if (this.showShareList) {
         const items = [...this.shares.values()]
           .filter((s) => s.running)
@@ -611,15 +617,27 @@ class ShareHub extends EventEmitter {
         list.push(it);
       }
       const relBase = r.cwdRel === '/' ? '' : r.cwdRel;
+      // 并发 stat 提速大目录（每批 64 个）
+      const files = list.filter((it) => it.isFile());
+      const sizeMap = new Map();
+      const BATCH = 64;
+      for (let i = 0; i < files.length; i += BATCH) {
+        await Promise.all(files.slice(i, i + BATCH).map(async (it) => {
+          try {
+            const fst = await fsp.stat(path.join(r.realPath, it.name));
+            sizeMap.set(it.name, { s: fst.size, t: fst.mtimeMs });
+          } catch (_) {}
+        }));
+      }
       for (const it of list) {
         const rel = (relBase ? relBase.replace(/\/+$/, '') : '') + '/' + it.name;
         if (it.isDirectory()) {
           entries.push({ n: it.name, d: true, s: -1, t: null, rel });
         } else if (it.isFile()) {
-          let s = -1, t = null;
-          try { const fst = await fsp.stat(path.join(r.realPath, it.name)); s = fst.size; t = fst.mtimeMs; } catch (_) {}
+          const info = sizeMap.get(it.name) || {};
+          const s = info.s != null ? info.s : -1;
           entries.push({
-            n: it.name, d: false, s, t, rel,
+            n: it.name, d: false, s, t: info.t || null, rel,
             inline: canInline(guessMime(it.name)),
             view: s >= 0 && s <= MAX_VIEW_SIZE && isTextFile(it.name)
           });

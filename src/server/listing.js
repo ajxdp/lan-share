@@ -26,59 +26,73 @@ function jsonForScript(obj) {
 const BASE_CSS = `
 :root{
   --bg:#f4f6fa; --card:#ffffff; --line:#e5e9f2; --txt:#2b3445; --sub:#7a8499;
-  --pri:#2f6bff; --pri-dark:#2456d6; --ok:#18a058; --warn:#e6a23c; --err:#e5545c;
-  --radius:12px;
+  --pri:#2f6bff; --pri-dark:#2456d6; --pri-bg:#eef3ff;
+  --ok:#18a058; --ok-bg:#e8f7ef; --warn:#c47d10; --warn-bg:#fdf1e2; --err:#e5545c; --err-bg:#fdecec;
+  --hover:#f8faff; --rowline:#f0f3f8; --track:#e9edf5; --dropbg:rgba(47,107,255,.08);
+  --toast-bg:#2b3445; --fab-shadow:0 2px 10px rgba(30,40,70,.15);
+}
+html.dark{
+  --bg:#15171c; --card:#1e2127; --line:#2d313b; --txt:#e4e7ee; --sub:#8b93a5;
+  --pri:#4a80ff; --pri-dark:#5f92ff; --pri-bg:#212b45;
+  --ok:#31bd75; --ok-bg:#17301f; --warn:#e0a23c; --warn-bg:#332a15; --err:#e5545c; --err-bg:#36201f;
+  --hover:#242831; --rowline:#262a33; --track:#2d313b; --dropbg:rgba(74,128,255,.12);
+  --toast-bg:#3a4050; --fab-shadow:0 2px 10px rgba(0,0,0,.4);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
-  background:var(--bg);color:var(--txt);min-height:100vh;display:flex;flex-direction:column;-webkit-text-size-adjust:100%}
+  background:var(--bg);color:var(--txt);min-height:100vh;display:flex;flex-direction:column;
+  -webkit-text-size-adjust:100%;transition:background-color .2s ease,color .2s ease}
 a{color:var(--pri);text-decoration:none}
 .wrap{width:100%;max-width:960px;margin:0 auto;padding:16px;flex:1}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:0 1px 3px rgba(30,40,70,.05);padding:18px;margin-bottom:14px}
+  box-shadow:0 1px 3px rgba(30,40,70,.05);padding:18px;margin-bottom:14px;transition:background-color .2s ease,border-color .2s ease}
 .badge{display:inline-block;font-size:12px;padding:2px 9px;border-radius:20px;vertical-align:2px}
-.badge.ro{background:#eef2ff;color:#4c6ef5}
-.badge.rw{background:#e8f7ef;color:#18a058}
-.badge.exp{background:#fdf1e2;color:#c47d10}
+.badge.ro{background:var(--pri-bg);color:var(--pri)}
+.badge.rw{background:var(--ok-bg);color:var(--ok)}
+.badge.exp{background:var(--warn-bg);color:var(--warn)}
+.badge.pw{background:var(--warn-bg);color:var(--warn)}
 h1{font-size:19px;margin-bottom:6px;word-break:break-all}
 .sub{color:var(--sub);font-size:13px}
 .crumb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:14px;margin:14px 2px 10px;word-break:break-all}
 .crumb a{color:var(--pri)}
-.crumb .sep{color:#b6bfd0}
+.crumb .sep{color:var(--sub);opacity:.6}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);
-  color:var(--txt);border-radius:9px;padding:8px 14px;font-size:14px;cursor:pointer;user-select:none;transition:.15s}
+  color:var(--txt);border-radius:9px;padding:8px 14px;font-size:14px;cursor:pointer;user-select:none;transition:.15s;font-family:inherit}
 .btn:hover{border-color:var(--pri);color:var(--pri)}
 .btn.primary{background:var(--pri);border-color:var(--pri);color:#fff}
-.btn.primary:hover{background:var(--pri-dark)}
+.btn.primary:hover{background:var(--pri-dark);color:#fff}
 .btn.danger{color:var(--err)}
 .btn.danger:hover{border-color:var(--err)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-.search{flex:1;min-width:140px;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:14px;outline:none;background:var(--bg)}
+.search{flex:1;min-width:140px;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:14px;outline:none;background:var(--bg);color:var(--txt);font-family:inherit}
 .search:focus{border-color:var(--pri)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{color:var(--sub);font-weight:500;text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;user-select:none}
 th.sortable{cursor:pointer}
 th.sortable:hover{color:var(--pri)}
-td{padding:10px;border-bottom:1px solid #f0f3f8;vertical-align:middle}
-tr.row:hover{background:#f8faff}
+td{padding:10px;border-bottom:1px solid var(--rowline);vertical-align:middle}
+tr.row:hover{background:var(--hover)}
 .name{word-break:break-all}
 .icon{margin-right:6px}
 .size,.time{white-space:nowrap;color:var(--sub);font-size:13px}
 .ops{white-space:nowrap}
 .ops a,.ops button{margin-right:8px;font-size:13px}
+.linkbtn{background:none;border:none;color:var(--pri);cursor:pointer;font-family:inherit;padding:0}
+.linkbtn:hover{text-decoration:underline}
 input[type=checkbox]{width:16px;height:16px;accent-color:var(--pri);cursor:pointer}
 .empty{text-align:center;color:var(--sub);padding:40px 0}
 .progress-wrap{display:none;margin-top:12px}
 .progress-item{margin-bottom:8px;font-size:13px}
-.progress-bar{height:8px;background:#e9edf5;border-radius:6px;overflow:hidden;margin-top:4px}
+.progress-bar{height:8px;background:var(--track);border-radius:6px;overflow:hidden;margin-top:4px}
 .progress-bar>div{height:100%;background:var(--pri);width:0%;transition:width .2s;border-radius:6px}
 .progress-bar.done>div{background:var(--ok)}
-.footer{text-align:center;color:#aab3c5;font-size:12px;padding:18px 0 26px}
-.dropmask{position:fixed;inset:0;background:rgba(47,107,255,.08);border:3px dashed var(--pri);
+.footer{text-align:center;color:var(--sub);opacity:.7;font-size:12px;padding:18px 0 26px}
+.dropmask{position:fixed;inset:0;background:var(--dropbg);border:3px dashed var(--pri);
   display:none;align-items:center;justify-content:center;font-size:20px;color:var(--pri);z-index:99;pointer-events:none;border-radius:12px}
-.toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:#2b3445;color:#fff;
-  padding:10px 20px;border-radius:10px;font-size:14px;display:none;z-index:100;max-width:86vw}
+.toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:var(--toast-bg);color:var(--txt);
+  padding:10px 20px;border-radius:10px;font-size:14px;display:none;z-index:100;max-width:86vw;
+  box-shadow:0 8px 24px rgba(0,0,0,.25)}
 @media(max-width:640px){
   .time{display:none}
   th.time-col{display:none}
@@ -88,7 +102,45 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--pri);cursor:point
 dialog{border:none;border-radius:14px;padding:22px;max-width:88vw}
 dialog::backdrop{background:rgba(20,28,45,.4)}
 .qrbox img{width:240px;height:240px}
+.theme-fab{position:fixed;top:14px;right:14px;z-index:98;width:38px;height:38px;border-radius:50%;
+  border:1px solid var(--line);background:var(--card);cursor:pointer;font-size:17px;color:var(--txt);
+  display:flex;align-items:center;justify-content:center;box-shadow:var(--fab-shadow);
+  transition:transform .2s ease,background-color .2s ease;padding:0}
+.theme-fab:hover{transform:scale(1.1) rotate(15deg)}
 `;
+
+/** 主题初始化（head 同步执行，防闪烁）+ 记忆到 localStorage、无记录时跟随系统 */
+const THEME_HEAD_SCRIPT = `
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('lanshare-theme');
+    if(t === 'dark' || (!t && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)){
+      document.documentElement.classList.add('dark');
+    }
+  }catch(e){}
+})();
+</script>`;
+
+/** 主题切换按钮（固定右上角）+ 点击逻辑 */
+const THEME_FAB_HTML = `
+<button class="theme-fab" id="themeBtn" type="button" title="切换明暗主题">🌙</button>
+<script>
+(function(){
+  var btn = document.getElementById('themeBtn');
+  function cur(){ return document.documentElement.classList.contains('dark'); }
+  function paint(){ btn.textContent = cur() ? '\\u2600\\uFE0F' : '\\uD83C\\uDF19';
+    btn.title = cur() ? '\\u5207\\u6362\\u5230\\u6D45\\u8272\\u6A21\\u5F0F' : '\\u5207\\u6362\\u5230\\u6DF1\\u8272\\u6A21\\u5F0F'; }
+  btn.addEventListener('click', function(){
+    document.documentElement.classList.toggle('dark');
+    try{ localStorage.setItem('lanshare-theme', cur() ? 'dark' : 'light'); }catch(e){}
+    paint();
+  });
+  paint();
+})();
+</script>`;
+
+const FAVICON = `<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%A1%3C/text%3E%3C/svg%3E">`;
 
 /**
  * 通用页面壳
@@ -101,13 +153,16 @@ function pageShell(title, bodyHtml, extraHead = '') {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>${esc(title)}</title>
+${FAVICON}
 <style>${BASE_CSS}</style>
+${THEME_HEAD_SCRIPT}
 ${extraHead}
 </head>
 <body>
 <div class="wrap">
 ${bodyHtml}
 </div>
+${THEME_FAB_HTML}
 <div class="dropmask" id="dropmask">松开鼠标上传文件到当前目录</div>
 <div class="toast" id="toast"></div>
 </body>
@@ -153,7 +208,7 @@ function renderLogin(share, error, lockSeconds) {
   <h1 style="margin-top:10px">${esc(share.name)}</h1>
   <p class="sub" style="margin-top:6px">此共享受密码保护，请输入访问密码</p>
   <form method="POST" action="login" style="margin-top:20px;text-align:left">
-    <input class="search" style="width:100%;background:#fff" type="password" name="password"
+    <input class="search" style="width:100%;background:var(--card);color:var(--txt)" type="password" name="password"
       placeholder="访问密码" autofocus autocomplete="current-password" required>
     <button class="btn primary" style="width:100%;justify-content:center;margin-top:14px" type="submit">进入共享</button>
   </form>
@@ -227,7 +282,7 @@ function renderCodeView(ctx) {
   <div class="codebar"><span><b>${esc(ctx.name)}</b> · ${esc(ctx.linesTotal)} 行</span><span class="sp"></span><span>LanShare 代码预览</span></div>
   <pre class="code" id="code">${ctx.html}</pre>
 </div>
-<div class="footer" style="color:#7a8499">Powered by LanShare · 文件仅通过局域网传输</div>`, `
+<div class="footer">Powered by LanShare · 文件仅通过局域网传输</div>`, `
 <style>${CODE_CSS}</style>
 <script>
 document.addEventListener('DOMContentLoaded', function(){

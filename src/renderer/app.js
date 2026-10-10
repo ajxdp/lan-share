@@ -11,6 +11,25 @@ let editId = null;         // 编辑中的共享 id
 let logsCache = [];
 let pollTimer = null;
 
+/* ---------------- 主题（明暗切换，偏好持久化到主进程） ---------------- */
+
+function applyTheme(dark) {
+  document.documentElement.classList.toggle('dark', dark);
+  $('#btnTheme').textContent = dark ? '☀️' : '🌙';
+  $('#btnTheme').title = dark ? '切换到浅色模式' : '切换到深色模式';
+}
+
+function initTheme() {
+  // boot 时同步执行：首帧即为正确主题，无闪白
+  applyTheme(state && state.settings.theme === 'dark');
+}
+
+function toggleTheme() {
+  const dark = !document.documentElement.classList.contains('dark');
+  applyTheme(dark);
+  window.lanShare.saveSettings({ theme: dark ? 'dark' : 'light' }).then((s) => { state = s; }).catch(() => {});
+}
+
 /* ---------------- 工具 ---------------- */
 
 function toast(msg, isErr) {
@@ -202,6 +221,9 @@ async function fillFormForEdit(id) {
   $('#fConn').value = s.maxConnections;
   $('#fUploadMax').value = s.uploadMaxMB;
   $$('input[name=fRo]').forEach((r) => { r.checked = (r.value === 'rw') === !s.readonly; });
+  // 清理上次编辑遗留的自定义剩余时长选项，避免下拉框无限增长
+  const PRESETS = ['0', '30', '60', '360', '1440', '4320', '10080'];
+  [...$('#fExpire').options].forEach((o) => { if (!PRESETS.includes(o.value)) o.remove(); });
   // 有效期：剩余分钟（已过期/永久 → 默认 1 天 / 永久）
   if (!s.expiresAt) $('#fExpire').value = '0';
   else if (Date.now() > s.expiresAt) $('#fExpire').value = '1440';
@@ -223,7 +245,8 @@ async function fillFormForEdit(id) {
 async function submitForm() {
   if (!formRoots.length) { toast('请先选择要共享的文件夹', true); return; }
   const name = $('#fName').value.trim() || '我的共享';
-  const readonly = ![...$$('input[name=fRo]')].find((r) => r.checked)?.value.includes('rw');
+  const roRadio = [...$$('input[name=fRo]')].find((r) => r.checked);
+  const readonly = roRadio ? roRadio.value === 'ro' : true;
   const password = $('#fPassword').value;
   const expireMin = +$('#fExpire').value || 0;
   const cfg = {
@@ -445,17 +468,30 @@ function bind() {
     window.lanShare.openExternal('https://github.com/ajxdp/lan-share');
   });
 
+  // 主题
+  $('#btnTheme').addEventListener('click', toggleTheme);
+
   // 主进程事件
   window.lanShare.onStateChanged(() => refresh());
   window.lanShare.onNotice((msg) => toast(msg));
+  window.lanShare.onLog((entry) => {
+    // 日志页可见时实时追加（无需手动刷新）
+    if (!$('#tab-logs').hidden) {
+      logsCache.push(entry);
+      renderLogs();
+    }
+  });
 }
 
 /* ---------------- 启动 ---------------- */
 
 async function boot() {
+  // 主题尽快应用（state 未就绪时先按上次偏好/系统偏好猜测，state 到达后校正）
+  applyTheme(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
   bind();
   resetForm();
   await refresh();
+  initTheme();
   await initAutostart();
   pollTimer = setInterval(refresh, 5000); // 轻量轮询保持连接数/状态新鲜
 }

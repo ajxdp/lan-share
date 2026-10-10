@@ -14,7 +14,8 @@ const DEFAULTS = {
     autoRestore: true,    // 启动时自动恢复上次运行中的共享
     logToDisk: true,      // 访问日志写盘
     autostart: false,     // 开机自启（由主进程维护到系统登录项）
-    showShareList: false  // 根路径显示运行中的共享列表
+    showShareList: false, // 根路径显示运行中的共享列表
+    theme: 'light'        // 主界面主题：light | dark
   },
   shares: []
 };

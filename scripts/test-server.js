@@ -303,6 +303,17 @@ async function main() {
     ok(listPage.includes('🔒 密码'), '密码共享带锁标记');
     hub.showShareList = false;
 
+    /* ---------- 暗夜模式 ---------- */
+    console.log('\n[暗夜模式]');
+    r = await fetch(BASE + '/s/' + s1.id + '/');
+    const themed = await r.text();
+    ok(themed.includes('lanshare-theme'), '页面含主题记忆脚本（localStorage）');
+    ok(themed.includes('themeBtn'), '页面含主题切换按钮');
+    ok(themed.includes('html.dark'), 'CSS 含暗色变量覆盖');
+    ok(themed.includes('matchMedia'), '无记录时跟随系统偏好');
+    r = await fetch(BASE + '/favicon.ico');
+    ok(r.status === 204, 'favicon.ico 短路返回 204');
+
     /* ---------- 更新共享 ---------- */
     console.log('\n[更新共享]');
     await hub.updateShare(s1.id, { readonly: true, name: '公开共享-改' });

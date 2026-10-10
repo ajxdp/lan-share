@@ -52,7 +52,10 @@ async function init() {
     notify('共享已过期', '「' + share.name + '」已到达有效期，共享自动停止。');
     store.markRunning(share.id, false);
   });
-  hub.on('log', () => { /* 日志由 UI 主动拉取 */ });
+  hub.on('log', (entry) => {
+    // 实时转发日志给渲染进程（日志页自动追加）
+    if (win && !win.isDestroyed()) win.webContents.send('log', entry);
+  });
 
   registerIpc();
   createWindow();
@@ -243,6 +246,12 @@ function registerIpc() {
     if (patch.showShareList !== undefined) {
       hub.showShareList = !!settings.showShareList;
     }
+    if (patch.theme !== undefined) {
+      // 窗口背景色跟随主题，避免切换时闪白
+      if (win && !win.isDestroyed()) {
+        win.setBackgroundColor(settings.theme === 'dark' ? '#15171c' : '#f4f6fa');
+      }
+    }
     return fullState();
   });
 
@@ -287,6 +296,7 @@ function registerIpc() {
 /* ------------------------------------------------------------------ */
 
 function createWindow() {
+  const dark = store && store.settings.theme === 'dark';
   win = new BrowserWindow({
     width: 1040,
     height: 740,
@@ -295,7 +305,7 @@ function createWindow() {
     title: 'LanShare - 局域网文件共享',
     icon: path.join(__dirname, '../../build/icon.ico'),
     autoHideMenuBar: true,
-    backgroundColor: '#f4f6fa',
+    backgroundColor: dark ? '#15171c' : '#f4f6fa',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
