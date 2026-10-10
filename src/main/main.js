@@ -252,6 +252,12 @@ function registerIpc() {
   });
 
   ipcMain.handle('autostart:set', (_e, v) => {
+    // 单文件 portable 版每次解压路径不同，登录项会指向临时目录而失效
+    if (v && process.env.PORTABLE_EXECUTABLE_DIR) {
+      notify('单文件版不支持开机自启', '单文件版每次运行的解压路径不同，开机自启会失效。如需开机自启请使用安装版（Setup）。');
+      store.setSettings({ autostart: false });
+      return false;
+    }
     app.setLoginItemSettings({ openAtLogin: !!v, path: process.execPath });
     store.setSettings({ autostart: !!v });
     return app.getLoginItemSettings().openAtLogin;

@@ -20,9 +20,13 @@ win:
   target:
     - target: nsis
       arch: [x64]
-    - target: zip
+    - target: portable
       arch: [x64]
-  artifactName: ${productName}-${version}-${os}-${arch}-portable.${ext}
+  artifactName: ${productName}-${version}.${ext}
+
+portable:
+  artifactName: ${productName}-${version}-portable.exe
+  requestExecutionLevel: user
 
 nsis:
   oneClick: false

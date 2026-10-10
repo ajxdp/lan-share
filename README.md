@@ -27,10 +27,15 @@
 
 ## 下载与运行
 
-### 免安装绿色版
-1. 下载 `LanShare-x.x.x-win-x64-portable.zip`（Windows）或 `LanShare-x.x.x-mac-*.zip`（macOS）
-2. 解压到任意目录，双击 `LanShare.exe`（macOS 为 `LanShare.app`）即可运行
-3. 无需安装任何运行环境或依赖
+### 免安装单文件版（Windows）
+1. 下载 `LanShare-x.x.x-portable.exe` —— **单个 exe 文件，双击即用**，无需解压、无需安装、无任何依赖
+2. 首次启动需自解压，会稍慢 1~3 秒，之后正常
+3. 配置保存在本机 `%APPDATA%\LanShare\`，换文件名/移动位置不影响已有共享配置
+4. 注意：单文件版不支持「开机自启」（每次解压路径不同），需要开机自启请用安装版
+
+### 免安装绿色版（macOS）
+1. 下载 `LanShare-x.x.x-mac-*.zip`，解压得到 `LanShare.app`
+2. 拖入「应用程序」目录（或任意位置）双击运行
 
 > Windows 首次运行如出现 SmartScreen 提示：点击「更多信息」→「仍要运行」（因程序未做代码签名）。
 
@@ -59,8 +64,8 @@ npm run dist:win
 ```
 
 产物位于 `dist/`：
-- `LanShare-x.x.x-win-x64-portable.zip` — 免安装绿色版（解压即用）
-- `LanShare-Setup-x.x.x.exe` — 安装版（NSIS 安装向导）
+- `LanShare-x.x.x-portable.exe` — 免安装**单文件绿色版**（双击即用）
+- `LanShare-Setup-x.x.x.exe` — 安装版（NSIS 安装向导，支持开机自启）
 
 ### macOS（生成绿色版 zip + 安装版 dmg）
 
@@ -128,8 +133,8 @@ New-NetFirewallRule -DisplayName "LanShare" -Direction Inbound -Protocol TCP -Lo
 **Q：下载大文件中途断了怎么办？**
 访问页支持 HTTP Range 断点续传，浏览器或下载工具会自动续传。
 
-**Q：绿色版能开机自启吗？**
-可以，但依赖解压路径固定；路径变化后请重新开关一次「开机自启」开关。安装版无此问题。
+**Q：单文件版能开机自启吗？**
+不能——单文件版每次运行的解压路径不同，登录项会失效。需要开机自启请使用安装版（Setup），安装时会注册可靠的登录项。
 
 **Q：如何彻底退出？**
 系统托盘图标 → 右键 → 退出 LanShare。直接关闭主窗口只会隐藏窗口。
