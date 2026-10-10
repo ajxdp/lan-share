@@ -307,6 +307,7 @@ function renderSettings() {
   if (document.activeElement !== $('#sPort')) $('#sPort').value = state.settings.port;
   $('#sAutoRestore').checked = !!state.settings.autoRestore;
   $('#sLogToDisk').checked = !!state.settings.logToDisk;
+  $('#sShowList').checked = !!state.settings.showShareList;
 }
 
 async function initAutostart() {
@@ -429,7 +430,8 @@ function bind() {
   $('#btnSaveSettings').addEventListener('click', async () => {
     state = await window.lanShare.saveSettings({
       autoRestore: $('#sAutoRestore').checked,
-      logToDisk: $('#sLogToDisk').checked
+      logToDisk: $('#sLogToDisk').checked,
+      showShareList: $('#sShowList').checked
     });
     toast('设置已保存');
   });

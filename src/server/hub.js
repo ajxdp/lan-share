@@ -20,9 +20,11 @@ const path = require('path');
 const os = require('os');
 const { EventEmitter } = require('events');
 const { createThrottleStream, pipeBodyWithLimit } = require('./throttle');
-const { guessMime, canInline } = require('./mime');
+const { guessMime, canInline, isTextFile } = require('./mime');
+const { highlight, tokensToHtml } = require('./highlight');
 const {
-  renderWelcome, renderError, renderExpired, renderLogin, renderListing
+  renderWelcome, renderError, renderExpired, renderLogin, renderListing,
+  renderCodeView, renderShareList
 } = require('./listing');
 
 const SHARE_ID_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -30,6 +32,8 @@ const MAX_LIST_ENTRIES = 2000;
 const MAX_JSON_BODY = 1024 * 1024; // 1MB
 const LOCK_THRESHOLD = 5;
 const LOCK_MS = 5 * 60 * 1000;
+const MAX_VIEW_SIZE = 2 * 1024 * 1024;   // 文本预览上限 2MB
+const MAX_VIEW_LINES = 5000;             // 预览渲染行数上限
 
 function makeShareId(len = 6) {
   const bytes = crypto.randomBytes(len);
@@ -129,6 +133,7 @@ class ShareHub extends EventEmitter {
    *   port      监听端口（默认 8965）
    *   logDir    访问日志落盘目录（null 则不落盘）
    *   maxLogs   内存日志条数上限
+   *   showShareList  根路径是否显示运行中的共享列表（默认 false）
    */
   constructor(opts = {}) {
     super();
@@ -136,6 +141,7 @@ class ShareHub extends EventEmitter {
     this.actualPort = null;
     this.logDir = opts.logDir || null;
     this.maxLogs = +opts.maxLogs || 1000;
+    this.showShareList = !!opts.showShareList;
     this.logs = [];
     this.shares = new Map();     // id -> share
     this.server = null;
@@ -333,7 +339,14 @@ class ShareHub extends EventEmitter {
     const u = new URL(req.url, 'http://lan-share.local');
     const m = /^\/s\/([A-Za-z0-9]+)(\/.*)?$/.exec(u.pathname);
     if (!m) {
-      this._sendHtml(res, 200, renderWelcome());
+      if (this.showShareList) {
+        const items = [...this.shares.values()]
+          .filter((s) => s.running)
+          .map((s) => ({ id: s.id, name: s.name, readonly: s.readonly, hasPassword: !!s.password }));
+        this._sendHtml(res, 200, renderShareList({ hostname: os.hostname(), items }));
+      } else {
+        this._sendHtml(res, 200, renderWelcome());
+      }
       return;
     }
     const share = this.shares.get(m[1]);
@@ -546,6 +559,9 @@ class ShareHub extends EventEmitter {
       case (rest === '/raw' && (method === 'GET' || method === 'HEAD')):
         await this._handleDownload(share, targetDecoded, req, res, ip, true);
         return;
+      case (rest === '/view' && method === 'GET'):
+        await this._handleTextView(share, targetDecoded, req, res, ip);
+        return;
       case (rest === '/up' && method === 'POST'):
         await this._handleUpload(share, targetDecoded, req, res, ip);
         return;
@@ -602,7 +618,11 @@ class ShareHub extends EventEmitter {
         } else if (it.isFile()) {
           let s = -1, t = null;
           try { const fst = await fsp.stat(path.join(r.realPath, it.name)); s = fst.size; t = fst.mtimeMs; } catch (_) {}
-          entries.push({ n: it.name, d: false, s, t, rel, inline: canInline(guessMime(it.name)) });
+          entries.push({
+            n: it.name, d: false, s, t, rel,
+            inline: canInline(guessMime(it.name)),
+            view: s >= 0 && s <= MAX_VIEW_SIZE && isTextFile(it.name)
+          });
         }
         // 其余类型（符号链接等）跳过
       }
@@ -718,6 +738,100 @@ class ShareHub extends EventEmitter {
     out.on('error', () => { try { res.destroy(); } catch (_) {} });
     res.on('close', () => { try { stream.destroy(); } catch (_) {} });
     out.pipe(res);
+  }
+
+  /* ---- 文本 / 代码预览 ---- */
+
+  /**
+   * 文本解码：BOM → UTF-8 严格 → GBK 回退 → Latin-1
+   * @returns {{text: string, enc: string, binary: boolean}}
+   */
+  _decodeText(buf) {
+    if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
+      return { text: new TextDecoder('utf-16le').decode(buf.subarray(2)), enc: 'UTF-16LE', binary: false };
+    }
+    if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
+      return { text: new TextDecoder('utf-16be').decode(buf.subarray(2)), enc: 'UTF-16BE', binary: false };
+    }
+    let body = buf;
+    let enc = 'UTF-8';
+    if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
+      body = buf.subarray(3);
+    }
+    if (body.includes(0)) {
+      return { text: '', enc: '', binary: true };
+    }
+    try {
+      return { text: new TextDecoder('utf-8', { fatal: true }).decode(body), enc, binary: false };
+    } catch (_) {}
+    try {
+      return { text: new TextDecoder('gbk').decode(body), enc: 'GBK', binary: false };
+    } catch (_) {}
+    return { text: body.toString('latin1'), enc: 'Latin-1', binary: false };
+  }
+
+  async _handleTextView(share, rel, req, res, ip) {
+    const base = '/s/' + share.id;
+    const dlUrl = base + '/dl?path=' + encodeURIComponent(rel || '');
+    const tooLarge = (msg) => this._sendHtml(res, 200, renderError(200, msg, '可返回目录后使用「下载」获取文件。'));
+
+    if (rel == null || rel === '' || rel === '/') {
+      this._sendHtml(res, 400, renderError(400, '缺少文件路径'));
+      return;
+    }
+    const r = this._resolvePath(share, rel);
+    if (r.virtualRoot) {
+      this._sendHtml(res, 400, renderError(400, '无法预览目录'));
+      return;
+    }
+    if (!isTextFile(path.basename(r.realPath))) {
+      tooLarge('该文件类型不支持在线预览');
+      return;
+    }
+    let st;
+    try { st = await fsp.stat(r.realPath); } catch (_) {}
+    if (!st || !st.isFile()) {
+      this._sendHtml(res, 404, renderError(404, '文件不存在'));
+      return;
+    }
+    if (st.size > MAX_VIEW_SIZE) {
+      this.log({ share, ip, action: 'preview-text', detail: rel + ' 过大未预览 (' + fmtBytes(st.size) + ')', ok: false });
+      tooLarge('文件大小 ' + fmtBytes(st.size) + ' 超过预览上限 ' + fmtBytes(MAX_VIEW_SIZE));
+      return;
+    }
+
+    let buf;
+    try { buf = await fsp.readFile(r.realPath); } catch (err) {
+      this._sendHtml(res, 500, renderError(500, '读取文件失败', err.code === 'EACCES' ? '没有读取权限' : String(err.message)));
+      return;
+    }
+    const dec = this._decodeText(buf);
+    if (dec.binary) {
+      tooLarge('这是二进制文件，不支持文本预览');
+      return;
+    }
+
+    const { lang, tokens } = highlight(path.basename(r.realPath), dec.text);
+    const totalLines = dec.text.split('\n').length;
+    const rendered = tokensToHtml(tokens, MAX_VIEW_LINES);
+    const LANG_NAMES = {
+      js: 'JavaScript', python: 'Python', html: 'HTML / XML', css: 'CSS', json: 'JSON',
+      markdown: 'Markdown', clike: 'C / C++ / Java 等', go: 'Go', rust: 'Rust',
+      shell: 'Shell / Batch', conf: '配置文件', sql: 'SQL', plain: '纯文本'
+    };
+
+    this.log({ share, ip, action: 'preview-text', detail: rel + ' (' + fmtBytes(st.size) + ')' });
+    this._sendHtml(res, 200, renderCodeView({
+      name: path.basename(r.realPath),
+      sizeText: fmtBytes(st.size),
+      enc: dec.enc,
+      langText: LANG_NAMES[lang] || lang,
+      html: rendered.html,
+      truncated: rendered.truncated,
+      linesShown: rendered.lines,
+      linesTotal: totalLines,
+      rawUrl: dlUrl
+    }));
   }
 
   /* ---- 上传 ---- */

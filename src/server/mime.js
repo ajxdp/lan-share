@@ -72,4 +72,28 @@ function extOf(name) {
   return i < 0 ? '' : name.slice(i).toLowerCase();
 }
 
-module.exports = { guessMime, canInline, extOf, MIME_MAP };
+/** 可用代码/文本预览页打开的扩展名 */
+const TEXT_EXTS = new Set([
+  'txt', 'md', 'markdown', 'log', 'json', 'jsonc', 'xml', 'html', 'htm', 'xhtml', 'vue', 'svg',
+  'css', 'scss', 'less', 'styl', 'js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx',
+  'py', 'pyw', 'java', 'kt', 'kts', 'c', 'h', 'cpp', 'cc', 'cxx', 'hpp', 'hxx', 'cs', 'swift',
+  'php', 'dart', 'scala', 'go', 'rs', 'sh', 'bash', 'zsh', 'bat', 'cmd', 'ps1', 'psm1',
+  'yml', 'yaml', 'toml', 'ini', 'conf', 'cfg', 'env', 'properties', 'sql',
+  'csv', 'tsv', 'rb', 'pl', 'lua', 'r', 'gradle', 'groovy', 'sbt', 'cmake', 'dockerfile',
+  'gitignore', 'gitattributes', 'editorconfig', 'npmrc', 'babelrc', 'prettierrc', 'htaccess'
+]);
+
+/** 常见无扩展名文本文件 */
+const TEXT_NAMES = new Set([
+  'makefile', 'dockerfile', 'license', 'licence', 'readme', 'changelog', 'notice', 'authors',
+  'cmakelists.txt', 'vagrantfile', 'rakefile', 'gemfile', 'procfile'
+]);
+
+function isTextFile(name) {
+  const lower = String(name || '').toLowerCase();
+  if (TEXT_NAMES.has(lower)) return true;
+  const m = /\.([a-z0-9]+)$/i.exec(lower);
+  return m ? TEXT_EXTS.has(m[1]) : false;
+}
+
+module.exports = { guessMime, canInline, extOf, isTextFile, MIME_MAP };

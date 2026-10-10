@@ -253,6 +253,56 @@ async function main() {
     const logFiles = (await fsp.readdir(logDir)).filter((f) => f.endsWith('.jsonl'));
     ok(logFiles.length === 1, '日志已落盘 JSONL（' + logFiles.join(',') + '）');
 
+    /* ---------- 代码/文本预览 ---------- */
+    console.log('\n[代码/文本预览]');
+    await fsp.writeFile(path.join(root1, 'demo.js'), '// 注释\nconst x = "hello";\nfunction add(a, b) {\n  return a + b; // 数字 42\n}\n');
+    await fsp.writeFile(path.join(root1, 'script.py'), '# Python 注释\ndef main():\n    print("你好世界")\n');
+    await fsp.writeFile(path.join(root1, 'gbk.txt'), Buffer.from([0xC4, 0xE3, 0xBA, 0xC3, 0xA3, 0xAC, 0xB8, 0xF1, 0xB9, 0xFE])); // "你好，格哈" GBK
+    await fsp.writeFile(path.join(root1, 'binary.txt'), Buffer.from([0x41, 0x00, 0x42, 0x43]));
+    await fsp.writeFile(path.join(root1, 'huge.txt'), Buffer.alloc(2 * 1024 * 1024 + 10, 0x61));
+    await fsp.writeFile(path.join(root1, 'photo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+
+    r = await fetch(BASE + '/s/' + s1.id + '/view?path=' + encodeURIComponent('/demo.js'));
+    const viewHtml = await r.text();
+    ok(r.status === 200, 'JS 代码预览页 200');
+    ok(viewHtml.includes('tk-kw') && viewHtml.includes('tk-str') && viewHtml.includes('tk-com'), '语法高亮（关键字/字符串/注释）');
+    ok(viewHtml.includes('class="ln"'), '带行号');
+    ok(viewHtml.includes('JavaScript'), '语言标注 JavaScript');
+    ok(viewHtml.includes('/dl?path='), '提供下载链接');
+
+    r = await fetch(BASE + '/s/' + s1.id + '/view?path=' + encodeURIComponent('/script.py'));
+    ok(r.status === 200 && (await r.text()).includes('Python'), 'Python 预览');
+
+    r = await fetch(BASE + '/s/' + s1.id + '/view?path=' + encodeURIComponent('/gbk.txt'));
+    const gbkHtml = await r.text();
+    ok(r.status === 200 && gbkHtml.includes('GBK'), 'GBK 编码自动识别');
+
+    r = await fetch(BASE + '/s/' + s1.id + '/view?path=' + encodeURIComponent('/说明文档.txt'));
+    ok(r.status === 200 && (await r.text()).includes('UTF-8'), 'UTF-8 中文文本预览');
+
+    r = await fetch(BASE + '/s/' + s1.id + '/view?path=' + encodeURIComponent('/binary.txt'));
+    ok(r.status === 200 && (await r.text()).includes('二进制'), '二进制文件给出提示而非乱码');
+
+    r = await fetch(BASE + '/s/' + s1.id + '/view?path=' + encodeURIComponent('/huge.txt'));
+    ok((await r.text()).includes('超过预览上限'), '超大文件提示下载');
+
+    r = await fetch(BASE + '/s/' + s1.id + '/view?path=' + encodeURIComponent('/photo.png'));
+    ok(r.status === 200 && (await r.text()).includes('不支持在线预览'), '非文本类型拒绝预览');
+
+    r = await fetch(BASE + '/s/' + s1.id + '/');
+    ok((await r.text()).includes('/view?path='), '列表页对文本文件显示预览链接');
+
+    /* ---------- 根路径共享列表开关 ---------- */
+    console.log('\n[根路径共享列表开关]');
+    r = await fetch(BASE + '/');
+    ok(!(await r.text()).includes('s1.id'), '默认关闭：根路径不泄露共享列表');
+    hub.showShareList = true;
+    r = await fetch(BASE + '/');
+    const listPage = await r.text();
+    ok(r.status === 200 && listPage.includes('公开共享') && listPage.includes('/s/' + s1.id + '/'), '开启后列出运行中的共享与入口');
+    ok(listPage.includes('🔒 密码'), '密码共享带锁标记');
+    hub.showShareList = false;
+
     /* ---------- 更新共享 ---------- */
     console.log('\n[更新共享]');
     await hub.updateShare(s1.id, { readonly: true, name: '公开共享-改' });

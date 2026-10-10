@@ -168,6 +168,88 @@ function renderLogin(share, error, lockSeconds) {
  * ctx: {shareId, base, shareName, readonly, expiresAt, multiRoot, cwdRel,
  *       entries:[{n,d,s,t}], breadcrumb:[{name, href}...], serverNow}
  */
+function renderShareList(ctx) {
+  const items = ctx.items.map((it) => `
+    <a class="share-item" href="/s/${esc(it.id)}/">
+      <span class="si-name">📁 ${esc(it.name)}</span>
+      <span class="badge ${it.readonly ? 'ro' : 'rw'}">${it.readonly ? '只读' : '读写'}</span>
+      ${it.hasPassword ? '<span class="badge pw">🔒 密码</span>' : ''}
+      <span class="si-go">进入 →</span>
+    </a>`).join('');
+  return pageShell('共享列表', `
+<div class="card">
+  <h1>📡 ${esc(ctx.hostname)} 的共享列表</h1>
+  <p class="sub">以下是该设备上正在运行的共享（共 ${ctx.items.length} 个）。带 🔒 的共享点击后需输入访问密码。</p>
+</div>
+${items ? `<div class="card share-list">${items}</div>` : '<div class="card"><div class="empty">当前没有正在运行的共享</div></div>'}
+<div class="footer">Powered by LanShare · 文件仅通过局域网传输</div>`, `
+<style>
+.share-list{padding:8px}
+.share-item{display:flex;align-items:center;gap:10px;padding:14px 14px;border-bottom:1px solid var(--line);color:var(--txt)}
+.share-item:last-child{border-bottom:none}
+.share-item:hover{background:#f8faff}
+.si-name{flex:1;font-size:15px;font-weight:600}
+.si-go{color:var(--pri);font-size:13px}
+.badge.pw{background:#fdeef5;color:#c25087}
+</style>`);
+}
+
+const CODE_CSS = `
+.codepage{background:#1e1e1e;border-radius:12px;overflow:auto;margin-top:14px;max-height:72vh;font-size:13px}
+.codebar{display:flex;gap:14px;padding:10px 16px;background:#252526;border-bottom:1px solid #333;color:#9da5b4;font-size:12px;position:sticky;top:0}
+.codebar b{color:#e8e8e8;font-weight:600}
+.codebar .sp{flex:1}
+.codebar a,.codebar button{color:#4daafc;text-decoration:none;background:none;border:none;cursor:pointer;font-size:12px;padding:0;font-family:inherit}
+pre.code{margin:0;padding:12px 0;font-family:Consolas,"JetBrains Mono","Cascadia Code",Menlo,monospace;line-height:1.55;color:#d4d4d4}
+.cl{display:block}
+.ln{display:inline-block;width:56px;padding-right:14px;text-align:right;color:#5a6070;user-select:none;flex-shrink:0}
+.lc{display:inline-block;min-width:100%;padding-right:16px}
+.wraplines .lc{white-space:pre-wrap;word-break:break-all;vertical-align:top}
+.tk-kw{color:#569cd6}.tk-str{color:#ce9178}.tk-num{color:#b5cea8}
+.tk-com{color:#6a9955;font-style:italic}.tk-fn{color:#dcdcaa}
+.tk-tag{color:#4ec9b0}.tk-attr{color:#9cdcfe}.tk-pl{color:#d4d4d4}
+`;
+
+function renderCodeView(ctx) {
+  return pageShell(ctx.name + ' - 预览', `
+<div class="card" style="padding:14px 18px">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">
+      <h1 style="font-size:16px">📄 ${esc(ctx.name)}</h1>
+      <p class="sub">${esc(ctx.sizeText)} · ${esc(ctx.enc)} · ${esc(ctx.langText)}${ctx.truncated ? ' · <span style=\"color:var(--warn)\">仅显示前 ' + ctx.linesShown + ' 行</span>' : ''}</p>
+    </div>
+    <button class="btn small" id="btnCopy">复制内容</button>
+    <a class="btn small primary" href="${esc(ctx.rawUrl)}" download="${esc(ctx.name)}">下载文件</a>
+    <button class="btn small" id="btnWrap">自动换行</button>
+  </div>
+</div>
+<div class="codepage" id="codepage">
+  <div class="codebar"><span><b>${esc(ctx.name)}</b> · ${esc(ctx.linesTotal)} 行</span><span class="sp"></span><span>LanShare 代码预览</span></div>
+  <pre class="code" id="code">${ctx.html}</pre>
+</div>
+<div class="footer" style="color:#7a8499">Powered by LanShare · 文件仅通过局域网传输</div>`, `
+<style>${CODE_CSS}</style>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+const VIEW = ${jsonForScript({ rawUrl: ctx.rawUrl, name: ctx.name })};
+const cp = document.getElementById('codepage');
+document.getElementById('btnWrap').addEventListener('click', function(){
+  cp.classList.toggle('wraplines');
+  this.textContent = cp.classList.contains('wraplines') ? '不换行' : '自动换行';
+});
+document.getElementById('btnCopy').addEventListener('click', async function(){
+  try{
+    const r = await fetch(VIEW.rawUrl);
+    const t = await r.text();
+    await navigator.clipboard.writeText(t);
+    this.textContent = '已复制';
+    setTimeout(()=>{ this.textContent = '复制内容'; }, 1800);
+  }catch(e){ this.textContent = '复制失败'; setTimeout(()=>{ this.textContent = '复制内容'; }, 1800); }
+});
+});
+</script>`);
+}
+
 function renderListing(ctx) {
   const ro = !!ctx.readonly;
   const body = `
@@ -288,7 +370,8 @@ function rowHtml(e){
   let ops = '';
   if(!e.d){
     ops += '<a href="'+DATA.base+'/dl?path='+enc(e.rel)+'">下载</a>';
-    if(e.inline) ops += '<a href="'+rawHref+'" target="_blank">预览</a>';
+    const pv = e.view ? (DATA.base+'/view?path='+enc(e.rel)) : (e.inline ? (DATA.base+'/raw?path='+enc(e.rel)) : null);
+    if(pv) ops += '<a href="'+pv+'" target="_blank">预览</a>';
   }
   if(!ro) ops += '<button class="linkbtn" data-del="'+esc(e.rel)+'" data-name="'+esc(e.n)+'">删除</button>';
   return '<tr class="row" data-n="'+esc(e.n.toLowerCase())+'">'
@@ -314,7 +397,6 @@ function iconByExt(n){
   if(['.txt','.md','.log','.json','.xml','.html','.css','.js','.py','.java','.c','.cpp','.h','.vue'].includes(ext)) return '📝';
   return '📄';
 }
-function relOf(e){ return e.rel; }
 function visibleEntries(){
   let list = DATA.entries.filter(e=>!kw || e.n.toLowerCase().includes(kw));
   const dir=e=>e.d?0:1;
@@ -475,4 +557,4 @@ render();
   return pageShell(ctx.shareName, body);
 }
 
-module.exports = { pageShell, renderWelcome, renderError, renderExpired, renderLogin, renderListing, esc };
+module.exports = { pageShell, renderWelcome, renderError, renderExpired, renderLogin, renderListing, renderCodeView, renderShareList, esc };

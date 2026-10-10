@@ -38,7 +38,8 @@ async function init() {
   const settings = store.settings;
   hub = new ShareHub({
     port: settings.port,
-    logDir: settings.logToDisk ? path.join(userData, 'logs') : null
+    logDir: settings.logToDisk ? path.join(userData, 'logs') : null,
+    showShareList: !!settings.showShareList
   });
 
   // hub 事件 → 渲染进程 / 托盘
@@ -238,6 +239,9 @@ function registerIpc() {
     if (patch.logToDisk !== undefined) {
       hub.logDir = settings.logToDisk ? path.join(app.getPath('userData'), 'logs') : null;
       if (hub.logDir) fs.mkdirSync(hub.logDir, { recursive: true });
+    }
+    if (patch.showShareList !== undefined) {
+      hub.showShareList = !!settings.showShareList;
     }
     return fullState();
   });

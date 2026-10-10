@@ -143,7 +143,9 @@
         <div class="field">
           <label class="check-row"><input type="checkbox" id="sAutoRestore"> 启动时自动恢复上次运行中的共享</label>
           <label class="check-row"><input type="checkbox" id="sLogToDisk"> 将访问日志写入磁盘（JSONL，按天分文件）</label>
+          <label class="check-row"><input type="checkbox" id="sShowList"> 访问根路径时显示共享列表（如 http://IP:端口/ 列出所有运行中的共享）</label>
           <label class="check-row"><input type="checkbox" id="sAutostart"> 开机自动启动 LanShare <span class="hint-inline" id="autostartHint"></span></label>
+          <p class="hint">⚠️ 开启「共享列表」后，任何能访问该端口的人都可以在浏览器打开根路径看到全部共享的名称与入口（带密码的共享仍需密码才能进入）。仅在可信局域网中建议开启。</p>
         </div>
       </div>
       <div class="form-actions">
