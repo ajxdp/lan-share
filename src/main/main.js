@@ -91,8 +91,13 @@ async function restoreShares() {
     // 已过期的不恢复
     if (rec.expiresAt && Date.now() > rec.expiresAt) continue;
     try {
-      await hub.addShare(store.toShareConfig(rec));
-      await startShareSafe(rec.id);
+      const share = hub.addShare(store.toShareConfig(rec));
+      // 历史版本 bug 可能产生无 id 的配置记录；恢复时把新生成的 id 回写
+      if (share.id !== rec.id) {
+        store.removeShare(rec.id);
+        store.upsertShare({ ...share, lastRunning: true });
+      }
+      await startShareSafe(share.id);
     } catch (err) {
       // 目录不存在等情况：跳过该共享
       console.warn('[restore] 恢复共享失败:', rec.name, err.message);

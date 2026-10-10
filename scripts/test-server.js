@@ -261,6 +261,19 @@ async function main() {
     ok(r.status === 403, '更新为只读后拒绝上传');
     await hub.updateShare(s1.id, { readonly: false, name: '公开共享' });
 
+    /* ---------- 模拟 IPC 新建流程（回归：addShare 必须同步返回含有效 id 的对象） ---------- */
+    console.log('\n[模拟 IPC 新建流程]');
+    const shareNew = hub.addShare({
+      name: 'IPC新建', roots: [root2], readonly: false, password: '',
+      expiresAt: 0, speedLimitKBps: 0, maxConnections: 0, uploadMaxMB: 0
+    }); // 注意：不加 await —— main 进程 IPC handler 即如此调用
+    ok(shareNew && typeof shareNew.id === 'string' && shareNew.id.length >= 4, 'addShare 同步返回含有效 id（非 Promise）');
+    await hub.startShare(shareNew.id);
+    ok(hub.shares.get(shareNew.id).running === true, '按返回的 id 启动共享成功');
+    r = await fetch(BASE + '/s/' + shareNew.id + '/');
+    ok(r.status === 200, '新建共享可立即通过 URL 访问');
+    hub.removeShare(shareNew.id);
+
     /* ---------- 停止共享 ---------- */
     console.log('\n[停止共享]');
     await hub.stopShare(s1.id);

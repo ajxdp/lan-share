@@ -1,7 +1,7 @@
 {
   "name": "lan-share",
   "productName": "LanShare",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "LanShare - 局域网文件共享工具：一键共享文件夹/磁盘，浏览器访问，支持上传下载、密码保护、二维码、限速与访问日志",
   "main": "src/main/main.js",
   "author": {

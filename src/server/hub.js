@@ -147,15 +147,17 @@ class ShareHub extends EventEmitter {
 
   /* ---------------- 共享管理 ---------------- */
 
-  addShare(cfg, { autostart = false } = {}) {
-    // 冲突检测：同一目录已在其他共享中且正在运行时仅提示，不阻断
+  /**
+   * 新建共享（同步返回 share 对象，含生成的 id；不自动启动）
+   * @returns {object} share
+   */
+  addShare(cfg) {
     const share = createShare(cfg);
     if (this.shares.has(share.id)) throw new Error('共享 ID 冲突，请重试');
     this.shares.set(share.id, share);
     this.log({ share, action: 'create', detail: share.name });
     this.emit('state-changed');
-    if (autostart) return this.startShare(share.id).catch(() => {});
-    return Promise.resolve(share);
+    return share;
   }
 
   updateShare(id, patch) {
